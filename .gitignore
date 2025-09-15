@@ -1,3 +1,10 @@
+__pycache__/
+*.pyc
+.env
+
+=======
+# entornos virtuales
+=======
 # --- Python básico ---
 __pycache__/
 *.py[cod]
@@ -48,6 +55,8 @@ logs/
 *.db
 *.sqlite3
 
+=======
+
 # IDEs / SO
 .vscode/*
 !.vscode/settings.json
@@ -56,5 +65,3 @@ logs/
 *.iml
 .DS_Store
 Thumbs.db
-
-
