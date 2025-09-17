@@ -16,25 +16,33 @@ from google.auth.transport import requests as google_requests
 
 import secrets
 from passlib.context import CryptContext
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
+
 @router.post("/register", response_model=UserResponse)
 async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
-    # Opcional: forzar solo Google
+    # (opcional) forzar registro solo con Google
     if getattr(settings, "AUTH_GOOGLE_ONLY", False):
         raise HTTPException(status_code=400, detail="El registro es solo con Google")
 
-    # Opcional: limitar dominio también en el registro clásico
-    if settings.ALLOWED_EMAIL_DOMAIN and not data.email.lower().endswith(f"@{settings.ALLOWED_EMAIL_DOMAIN}"):
-        raise HTTPException(status_code=400, detail=f"Solo correos @{settings.ALLOWED_EMAIL_DOMAIN}")
+    # (opcional) limitar dominio también en el registro clásico
+    if settings.ALLOWED_EMAIL_DOMAIN and not data.email.lower().endswith(
+        f"@{settings.ALLOWED_EMAIL_DOMAIN}"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo correos @{settings.ALLOWED_EMAIL_DOMAIN}",
+        )
 
     try:
         user = await AuthService.register_user(data, db)
         return user
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.post("/login")
 async def login_user(data: UserLogin, db: AsyncSession = Depends(get_db)):
@@ -45,20 +53,21 @@ async def login_user(data: UserLogin, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token({"sub": str(user.ID_Usuario)})
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 # /auth/google: crea o inicia sesión con Google
 @router.post("/google")
 async def login_with_google(payload: GoogleToken, db: AsyncSession = Depends(get_db)):
-    # 1) Verificar token de Google con audiencia (tu client_id)
+    # 1) Verificar token de Google usando tu CLIENT_ID como audiencia
     try:
         info = google_id_token.verify_oauth2_token(
             payload.id_token,
             google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID,   # audiencia
+            settings.GOOGLE_CLIENT_ID,  # audiencia
         )
     except Exception:
         raise HTTPException(status_code=401, detail="Token de Google inválido")
 
-    # (extra) validar issuer
+    # Validaciones adicionales
     if info.get("iss") not in ("https://accounts.google.com", "accounts.google.com"):
         raise HTTPException(status_code=401, detail="Issuer inválido")
 
@@ -68,10 +77,13 @@ async def login_with_google(payload: GoogleToken, db: AsyncSession = Depends(get
     email = str(info.get("email", "")).lower()
     nombre = (info.get("name") or info.get("given_name") or email.split("@")[0])[:30]
 
-    # 2) Restringir dominio si está configurado (p. ej. gmail.com)
+    # 2) Restringir dominio si se configuró
     if settings.ALLOWED_EMAIL_DOMAIN:
         allowed = settings.ALLOWED_EMAIL_DOMAIN.lower()
-        if not (email.endswith(f"@{allowed}") or (allowed == "gmail.com" and email.endswith("@googlemail.com"))):
+        if not (
+            email.endswith(f"@{allowed}")
+            or (allowed == "gmail.com" and email.endswith("@googlemail.com"))
+        ):
             raise HTTPException(status_code=403, detail=f"Solo correos @{allowed}")
 
     # 3) Buscar/crear usuario
@@ -93,6 +105,7 @@ async def login_with_google(payload: GoogleToken, db: AsyncSession = Depends(get
     # 4) Emitir JWT
     access_token = create_access_token({"sub": str(user.ID_Usuario)})
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.get("/me")
 async def read_profile(current_user: User = Depends(get_current_user)):

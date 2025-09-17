@@ -4,12 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import health, auth, solicitudes
 from app.core.config import settings
 
+
 def parse_origins(raw: str | None) -> list[str]:
     if not raw:
         return []
     origins = [o.strip() for o in raw.split(",") if o.strip()]
     # Evita '*' cuando allow_credentials=True
     return [o for o in origins if o != "*"]
+
 
 # Orígenes desde ENV (+ fallback útiles para dev/preview)
 origins = parse_origins(getattr(settings, "CORS_ORIGINS", ""))
@@ -43,6 +45,7 @@ app.add_middleware(
 app.include_router(health.router,      prefix="/health",      tags=["health"])
 app.include_router(auth.router,        prefix="/auth",        tags=["auth"])
 app.include_router(solicitudes.router, prefix="/solicitudes", tags=["solicitudes"])
+
 
 @app.get("/")
 def root():
