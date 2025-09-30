@@ -1,6 +1,9 @@
+# app/api/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from passlib.context import CryptContext
+import secrets
 
 from app.db.database import get_db
 from app.schemas.auth import UserRegister, UserLogin, UserResponse, GoogleToken
@@ -10,17 +13,15 @@ from app.api.deps import get_current_user
 from app.db.models.user import User
 from app.core.config import settings
 
+from app.utils.email_validators import is_disposable_domain, has_mx_records
+
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
 
-import secrets
-from passlib.context import CryptContext
-
-from app.utils.email_validators import is_disposable_domain, has_mx_records
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-router = APIRouter()
+# Este router lo montarás en main.py con prefix="/auth"
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse)
@@ -29,7 +30,8 @@ async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
     if getattr(settings, "AUTH_GOOGLE_ONLY", False):
         raise HTTPException(status_code=400, detail="El registro es solo con Google")
 
-    email = data.email.strip().lower()
+    # Normalizaciones + validaciones de correo
+    email = (data.email or "").strip().lower()
     domain = email.split("@")[-1] if "@" in email else ""
 
     # Filtro opcional por dominio permitido
@@ -44,7 +46,7 @@ async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
                 detail=f"Solo correos @{allowed}",
             )
 
-    # Validaciones anti-temporales y MX
+    # Anti-temporales y MX válidos
     if is_disposable_domain(domain):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -57,12 +59,14 @@ async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
             detail="Dominio de correo inválido (sin registros MX)",
         )
 
+    # Crear usuario (AuthService valida longitud <= 72 bytes, etc.)
     try:
-        # delega a AuthService (ahí ya validas longitud <=72 bytes, etc.)
-        user = await AuthService.register_user(
-            UserRegister(username=data.username, email=email, password=data.password),
-            db,
+        normalized = UserRegister(
+            username=data.username.strip(),
+            email=email,
+            password=data.password,
         )
+        user = await AuthService.register_user(normalized, db)
         return user
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -70,7 +74,6 @@ async def register_user(data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login")
 async def login_user(data: UserLogin, db: AsyncSession = Depends(get_db)):
-    # normaliza correo aquí también
     email = (data.email or "").strip().lower()
     user = await AuthService.authenticate_user(email, data.password, db)
     if not user:
@@ -121,15 +124,13 @@ async def login_with_google(payload: GoogleToken, db: AsyncSession = Depends(get
                 detail=f"Solo correos @{allowed}",
             )
 
-    # Busca por correo case-insensitive
-    result = await db.execute(
-        select(User).where(func.lower(User.Correo) == email)
-    )
+    # Busca por correo (case-insensitive)
+    result = await db.execute(select(User).where(func.lower(User.Correo) == email))
     user = result.scalar_one_or_none()
 
-    # Si no existe, lo crea con dummy hash
+    # Si no existe, crear con hash dummy
     if user is None:
-        dummy = pwd_context.hash(secrets.token_urlsafe(16))
+        dummy = pwd_context.hash(secrets.token_urlsafe(16))  # hash dummy para cuentas Google
         user = User(
             Nombre=nombre,
             Correo=email,
@@ -147,4 +148,11 @@ async def login_with_google(payload: GoogleToken, db: AsyncSession = Depends(get
 
 @router.get("/me")
 async def read_profile(current_user: User = Depends(get_current_user)):
-    return {"usuario": current_user.Nombre, "email": current_user.Correo}
+    # Llaves como tu frontend espera (lo mapeas a camelCase allí)
+    return {
+        "ID_Usuario": current_user.ID_Usuario,
+        "Nombre": current_user.Nombre,
+        "Correo": current_user.Correo,
+        "Verificado": getattr(current_user, "Verificado", None),
+        "Estado_Activo": getattr(current_user, "Estado_Activo", None),
+    }
