@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -7,12 +8,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     GOOGLE_CLIENT_ID: str = ""
     ALLOWED_EMAIL_DOMAIN: str | None = None
-  
-    CORS_ORIGINS: str = "*"   
-    ROOT_PATH: str = ""       
-    DOCS_URL: str = "/docs"   
+    CORS_ORIGINS: str = "*"
+    ROOT_PATH: str = ""
+    DOCS_URL: str = "/docs"
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = True
 
 settings = Settings()
