@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 API de Catálogos (Lectura)
 ========================
@@ -89,67 +90,71 @@ async def get_catalogos_bootstrap(
     metodos_entrega = get_metodos_entrega()
     condiciones_articulo = get_condiciones_articulo()
     
-    # Obtener catálogos desde BD
-    # Tipos de artículo
-    result_tipos = await db.execute(
-        select(CatTipoArticulo).order_by(CatTipoArticulo.nombre)
-    )
-    tipos_db = result_tipos.scalars().all()
-    tipos_articulo = [
-        TipoArticuloOut(id_tipo=t.id_tipo, nombre=t.nombre)
-        for t in tipos_db
-    ]
-    
-    # Estados de solicitud
-    result_estados_sol = await db.execute(
-        select(EstadoSolicitud).order_by(EstadoSolicitud.nombre)
-    )
-    estados_sol_db = result_estados_sol.scalars().all()
-    estados_solicitud = [
-        EstadoSolicitudOut(id_estado=e.id_estado_solicitud, nombre=e.nombre)
-        for e in estados_sol_db
-    ]
-    
-    # Estados de artículo
-    result_estados_art = await db.execute(
-        select(EstadoArticulo).order_by(EstadoArticulo.nombre)
-    )
-    estados_art_db = result_estados_art.scalars().all()
-    estados_articulo = [
-        EstadoArticuloOut(id_estado=e.id_estado_articulo, nombre=e.nombre)
-        for e in estados_art_db
-    ]
-    
-    # Estados de préstamo
-    result_estados_prest = await db.execute(
-        select(EstadoPrestamo).order_by(EstadoPrestamo.nombre)
-    )
-    estados_prest_db = result_estados_prest.scalars().all()
-    estados_prestamo = [
-        EstadoPrestamoOut(id_estado=e.id_estado_prestamo, nombre=e.nombre)
-        for e in estados_prest_db
-    ]
-    
-    # Estados de pago
-    result_estados_pago = await db.execute(
-        select(EstadoPago).order_by(EstadoPago.nombre)
-    )
-    estados_pago_db = result_estados_pago.scalars().all()
-    estados_pago = [
-        EstadoPagoOut(id_estado=e.id_estado_pago, nombre=e.nombre)
-        for e in estados_pago_db
-    ]
-    
-    # Estados de inventario
-    result_estados_inv = await db.execute(
-        select(EstadoInventario).order_by(EstadoInventario.nombre)
-    )
-    estados_inv_db = result_estados_inv.scalars().all()
-    estados_inventario = [
-        EstadoInventarioOut(id_estado=e.id_estado_inventario, nombre=e.nombre)
-        for e in estados_inv_db
-    ]
-    
+    # Obtener catálogos desde BD con manejo de errores
+    try:
+        # Tipos de artículo
+        result_tipos = await db.execute(
+            select(CatTipoArticulo).order_by(CatTipoArticulo.nombre)
+        )
+        tipos_db = result_tipos.scalars().all()
+        tipos_articulo = [
+            TipoArticuloOut(id_tipo=t.id_tipo, nombre=t.nombre)
+            for t in tipos_db
+        ]
+
+        # Estados de solicitud
+        result_estados_sol = await db.execute(
+            select(EstadoSolicitud).order_by(EstadoSolicitud.nombre)
+        )
+        estados_sol_db = result_estados_sol.scalars().all()
+        estados_solicitud = [
+            EstadoSolicitudOut(id_estado=e.id_estado_solicitud, nombre=e.nombre)
+            for e in estados_sol_db
+        ]
+
+        # Estados de artículo
+        result_estados_art = await db.execute(
+            select(EstadoArticulo).order_by(EstadoArticulo.nombre)
+        )
+        estados_art_db = result_estados_art.scalars().all()
+        estados_articulo = [
+            EstadoArticuloOut(id_estado=e.id_estado_articulo, nombre=e.nombre)
+            for e in estados_art_db
+        ]
+
+        # Estados de préstamo
+        result_estados_prest = await db.execute(
+            select(EstadoPrestamo).order_by(EstadoPrestamo.nombre)
+        )
+        estados_prest_db = result_estados_prest.scalars().all()
+        estados_prestamo = [
+            EstadoPrestamoOut(id_estado=e.id_estado_prestamo, nombre=e.nombre)
+            for e in estados_prest_db
+        ]
+
+        # Estados de pago
+        result_estados_pago = await db.execute(
+            select(EstadoPago).order_by(EstadoPago.nombre)
+        )
+        estados_pago_db = result_estados_pago.scalars().all()
+        estados_pago = [
+            EstadoPagoOut(id_estado=e.id_estado_pago, nombre=e.nombre)
+            for e in estados_pago_db
+        ]
+
+        # Estados de inventario
+        result_estados_inv = await db.execute(
+            select(EstadoInventario).order_by(EstadoInventario.nombre)
+        )
+        estados_inv_db = result_estados_inv.scalars().all()
+        estados_inventario = [
+            EstadoInventarioOut(id_estado=e.id_estado_inventario, nombre=e.nombre)
+            for e in estados_inv_db
+        ]
+    except Exception as e:
+        # Manejo de error genérico
+        raise HTTPException(status_code=500, detail=f"Error al obtener catálogos: {str(e)}")
+
     return CatalogosBootstrapOut(
         metodos_entrega=metodos_entrega,
         condiciones_articulo=condiciones_articulo,
@@ -210,175 +215,6 @@ async def get_tipos_articulo(
         TipoArticuloOut(id_tipo=t.id_tipo, nombre=t.nombre)
         for t in tipos
     ]
-
-
-@router.get(
-    "/estados/solicitud",
-    response_model=List[EstadoSolicitudOut],
-    summary="Obtener catálogo de estados de solicitud"
-)
-async def get_estados_solicitud(
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Devuelve todos los estados de solicitud ordenados por nombre"""
-    response.headers["Cache-Control"] = "public, max-age=300"
-    
-    result = await db.execute(
-        select(EstadoSolicitud).order_by(EstadoSolicitud.nombre)
-    )
-    estados = result.scalars().all()
-    
-    if not estados:
-        return []
-    
-    return [
-        EstadoSolicitudOut(id_estado=e.id_estado_solicitud, nombre=e.nombre)
-        for e in estados
-    ]
-
-
-@router.get(
-    "/estados/articulo",
-    response_model=List[EstadoArticuloOut],
-    summary="Obtener catálogo de estados de artículo"
-)
-async def get_estados_articulo(
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Devuelve todos los estados de artículo ordenados por nombre"""
-    response.headers["Cache-Control"] = "public, max-age=300"
-    
-    result = await db.execute(
-        select(EstadoArticulo).order_by(EstadoArticulo.nombre)
-    )
-    estados = result.scalars().all()
-    
-    if not estados:
-        return []
-    
-    return [
-        EstadoArticuloOut(id_estado=e.id_estado_articulo, nombre=e.nombre)
-        for e in estados
-    ]
-
-
-@router.get(
-    "/estados/prestamo",
-    response_model=List[EstadoPrestamoOut],
-    summary="Obtener catálogo de estados de préstamo"
-)
-async def get_estados_prestamo(
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Devuelve todos los estados de préstamo ordenados por nombre"""
-    response.headers["Cache-Control"] = "public, max-age=300"
-    
-    result = await db.execute(
-        select(EstadoPrestamo).order_by(EstadoPrestamo.nombre)
-    )
-    estados = result.scalars().all()
-    
-    if not estados:
-        return []
-    
-    return [
-        EstadoPrestamoOut(id_estado=e.id_estado_prestamo, nombre=e.nombre)
-        for e in estados
-    ]
-
-
-@router.get(
-    "/estados/pago",
-    response_model=List[EstadoPagoOut],
-    summary="Obtener catálogo de estados de pago"
-)
-async def get_estados_pago(
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Devuelve todos los estados de pago ordenados por nombre"""
-    response.headers["Cache-Control"] = "public, max-age=300"
-    
-    result = await db.execute(
-        select(EstadoPago).order_by(EstadoPago.nombre)
-    )
-    estados = result.scalars().all()
-    
-    if not estados:
-        return []
-    
-    return [
-        EstadoPagoOut(id_estado=e.id_estado_pago, nombre=e.nombre)
-        for e in estados
-    ]
-
-
-@router.get(
-    "/estados/inventario",
-    response_model=List[EstadoInventarioOut],
-    summary="Obtener catálogo de estados de inventario"
-)
-async def get_estados_inventario(
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Devuelve todos los estados de inventario ordenados por nombre"""
-    response.headers["Cache-Control"] = "public, max-age=300"
-    
-    result = await db.execute(
-        select(EstadoInventario).order_by(EstadoInventario.nombre)
-    )
-    estados = result.scalars().all()
-    
-    if not estados:
-        return []
-    
-    return [
-        EstadoInventarioOut(id_estado=e.id_estado_inventario, nombre=e.nombre)
-        for e in estados
-    ]
-
-
-# ========== C) ENDPOINT GENÉRICO CON PATRÓN ==========
-
-@router.get(
-    "/{nombre}",
-    summary="Obtener catálogo individual por nombre (patrón genérico)",
-    description="Permite obtener un catálogo específico usando su nombre como parámetro. "
-                "Ejemplos: tipos_articulo, estados_solicitud, estados_articulo, etc.",
-    response_model=List,
-    responses={
-        200: {
-            "description": "Catálogo obtenido exitosamente",
-            "content": {
-                "application/json": {
-                    "examples": {
-                        "tipos_articulo": {
-                            "value": [
-                                {"id_tipo": 1, "nombre": "Electrónicos"},
-                                {"id_tipo": 2, "nombre": "Joyas"}
-                            ]
-                        },
-                        "vacio": {
-                            "value": []
-                        }
-                    }
-                }
-            }
-        },
-        404: {
-            "description": "Catálogo no encontrado",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Catálogo 'inexistente' no encontrado"}
-                }
-            }
-        }
-    }
-)
 async def get_catalogo_generico(
     nombre: str = Path(..., description="Nombre del catálogo a obtener"),
     response: Response = None,
