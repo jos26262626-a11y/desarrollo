@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import health, auth, solicitudes
+from app.api.routers import health, auth, solicitudes, catalogos  # ← catalogos agregado aquí
 from app.core.config import settings
 
 
@@ -42,11 +42,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Incluir todos los routers
 app.include_router(health.router,      prefix="/health",      tags=["health"])
 app.include_router(auth.router,        prefix="/auth",        tags=["auth"])
 app.include_router(solicitudes.router, prefix="/solicitudes", tags=["solicitudes"])
+app.include_router(catalogos.router)  # ← Router de catálogos agregado (ya tiene prefix="/catalogos" definido internamente)
 
 
 @app.get("/")
 def root():
     return {"ok": True, "name": "API Pignoraticios"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
