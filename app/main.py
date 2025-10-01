@@ -2,8 +2,8 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
-feature/appi_catalogo
 from app.api.routers import health, auth, solicitudes, catalogos  # ← catalogos agregado aquí
+
 
 from app.core.config import settings
 from app.db import models  # noqa: F401  (si hay inicializaciones de modelos)
@@ -53,12 +53,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-feature/appi_catalogo
 # Incluir todos los routers
 app.include_router(health.router,      prefix="/health",      tags=["health"])
 app.include_router(auth.router,        prefix="/auth",        tags=["auth"])
 app.include_router(solicitudes.router, prefix="/solicitudes", tags=["solicitudes"])
 app.include_router(catalogos.router)  # ← Router de catálogos agregado (ya tiene prefix="/catalogos" definido internamente)
+
 
 
 # Rutas de diagnóstico locales (opcionales)
@@ -75,9 +75,9 @@ app.include_router(_diag)
 def root():
     return {"ok": True, "name": "API Pignoraticios"}
 
-feature/appi_catalogo
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
 
